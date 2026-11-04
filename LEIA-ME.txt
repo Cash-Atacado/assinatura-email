@@ -1,0 +1,23 @@
+GERADOR DE ASSINATURA – CASH ATACADO / SUPER JACA
+
+ESTRUTURA (suba tudo assim na raiz do repositório Cash-Atacado/assinatura-email)
+  index.html        -> o gerador (página única com os dois modelos)
+  cash/             -> imagens do modelo Cash Atacado
+  superjaca/        -> imagens do modelo Super Jaca
+
+PUBLICAR AS IMAGENS (obrigatório para quem recebe o e-mail ver logo e ícones)
+1. No GitHub: Settings > Pages > Source: "Deploy from a branch", branch main, pasta / (root).
+2. O endereço fica: https://cash-atacado.github.io/assinatura-email/
+   (é o valor de REPO no topo do <script> do index.html; se mudar, ajuste lá).
+3. O repositório precisa ser público (ou o plano da organização precisa permitir Pages em repo privado),
+   senão as imagens não abrem para quem recebe o e-mail.
+
+COMO USAR
+1. Abra https://cash-atacado.github.io/assinatura-email/ (ou o index.html local, com as pastas ao lado).
+2. Escolha o modelo (Cash Atacado ou Super Jaca) — logo, ícones, cores, site, endereço e domínio do e-mail mudam juntos.
+3. Preencha Nome, Cargo, Telefone, E-mail e Endereço.
+4. Clique em "Copiar assinatura" e cole em Outlook > Configurações > Assinaturas.
+
+AJUSTES
+- Links, site, endereço padrão e domínio de cada empresa: objeto MODELOS no topo do <script>.
+- Links das redes do Super Jaca estão vazios; preencha em MODELOS.superjaca.

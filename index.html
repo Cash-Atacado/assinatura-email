@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Gerador de Assinatura de E-mail</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{--cor:#005d2c}
+  *{box-sizing:border-box}
+  body{font-family:Segoe UI,Arial,sans-serif;margin:0;padding:32px 16px;color:#222;background:#f6f7f6}
+  .pagina{max-width:760px;margin:0 auto;text-align:center}
+  h1{font-size:22px;color:var(--cor);margin:0 0 20px;transition:color .2s}
+  .modelos{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:24px}
+  .modelo{background:#fff;border:2px solid #ddd;border-radius:8px;padding:12px 18px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px;color:#333;min-width:200px;justify-content:center}
+  .modelo img{height:44px;width:auto}
+  .modelo.ativo{border-color:var(--cor);box-shadow:0 0 0 3px color-mix(in srgb,var(--cor) 20%,transparent);font-weight:600}
+  .form{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:640px;margin:0 auto 20px;text-align:left}
+  @media (max-width:560px){.form{grid-template-columns:1fr}}
+  label{font-size:12px;color:#555;display:block}
+  input{width:100%;padding:8px;border:1px solid #bbb;border-radius:4px;font-size:14px}
+  input[type=checkbox]{width:auto}
+  .acoes{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+  button{background:var(--cor);color:#fff;border:0;border-radius:4px;padding:10px 18px;font-size:14px;cursor:pointer}
+  #msg{display:block;min-height:18px;margin-top:10px;font-size:13px;color:var(--cor)}
+  #aviso{font-size:12px;color:#a15c00;margin-top:6px}
+  .preview{background:#fff;border:1px solid #ddd;padding:20px;margin-top:12px;display:inline-block;text-align:left}
+</style>
+</head>
+<body>
+<div class="pagina">
+<h1 id="titulo">Gerador de assinatura</h1>
+
+<div class="modelos" id="modelos"></div>
+
+<div class="form">
+  <div><label>Nome</label><input id="nome" value="Template Template"></div>
+  <div><label>Cargo / Setor</label><input id="cargo" value="Tecnologia da Informação"></div>
+  <div><label>Telefone (exibição)</label><input id="tel" value="(99) 99999-9999"><label style="margin-top:6px;color:#222"><input type="checkbox" id="semtel"> Sem telefone (remover da assinatura)</label></div>
+  <div><label>E-mail</label><input id="email" value="template.template@cashatacado.com.br"></div>
+  <div style="grid-column:1/-1"><label>Endereço</label><input id="endereco"></div>
+</div>
+
+<div class="acoes">
+  <button onclick="copiar()">Copiar assinatura</button>
+  <button onclick="copiarHtml()" style="background:#444">Copiar código HTML</button>
+</div>
+<span id="msg"></span>
+<div id="aviso"></div>
+<div class="preview" id="preview"></div>
+</div>
+
+<script>
+/* ====== CONFIGURAÇÃO (altere aqui) ======
+   As imagens ficam no repositório Cash-Atacado/assinatura-email, publicado no GitHub Pages:
+   https://cash-atacado.github.io/assinatura-email/<pasta>/<imagem>.png
+   Para testar offline, troque REPO por '.' (usa as pastas locais cash/ e superjaca/). */
+const REPO = 'https://cash-atacado.github.io/assinatura-email';
+const FONTE = "'Glacial Indifference', 'Century Gothic', Arial, sans-serif";
+
+const MODELOS = {
+  cash: {
+    nome: 'Cash Atacado',
+    pasta: 'cash',
+    corUI: '#005d2c',
+    dominio: 'cashatacado.com.br',
+    site: 'www.cashatacado.com.br',
+    siteUrl: 'http://www.cashatacado.com.br/',
+    facebook: 'https://www.facebook.com/people/Cash-Atacado/61583398061035/',
+    linkedin: 'https://www.linkedin.com/company/cash-atacado',
+    instagram: 'https://www.instagram.com/cashatacadooficial/',
+    endereco: 'Avenida Tenente Marques, 6701 - Santana de Parnaíba',
+    layout: layoutCash
+  },
+  superjaca: {
+    nome: 'Super Jaca',
+    pasta: 'superjaca',
+    corUI: '#347228',
+    dominio: 'superjaca.com.br',
+    site: 'www.superjaca.com.br',
+    siteUrl: 'https://www.superjaca.com.br/',
+    /* Preencha os links das redes. Vazio = ícone aparece sem link. */
+    facebook: '',
+    linkedin: '',
+    instagram: '',
+    endereco: 'Estr. de Santa Isabel, 3055 - Itaquaquecetuba - SP, 08598-010',
+    layout: layoutSuperJaca
+  }
+};
+/* ======================================== */
+
+const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const T = 'cellpadding="0" cellspacing="0" border="0"';
+const imgUrl = (m,n) => `${REPO}/${m.pasta}/${n}.png`;
+const telLink = t => { const n = (t||'').replace(/[^\d+]/g,''); return 'tel:' + (n.startsWith('+') ? n : '+55' + n); };
+/* text-underline:none é a propriedade do Word/Outlook clássico para tirar o sublinhado. */
+const link = (href, txt, cor) => `<a href="${href}" style="color:${cor};text-decoration:none;text-underline:none"><span style="color:${cor};text-decoration:none;text-underline:none">${txt}</span></a>`;
+const contatos = (d,m,tam) => [
+  d.tel && {n:'telefone', w:tam.tel, h:tam.tel, alt:'Telefone', href:telLink(d.tel), txt:esc(d.tel)},
+  {n:'email', w:14, h:10, alt:'E-mail', href:`mailto:${esc(d.email)}`, txt:esc(d.email)},
+  {n:'site', w:14, h:14, alt:'Site', href:m.siteUrl, txt:m.site}
+].filter(Boolean);
+
+/* ---------- Modelo CASH (layout original, inalterado) ---------- */
+function layoutCash(d, m){
+  const I = n => imgUrl(m,n), cor = '#303d33', verde = '#005d2c';
+  const ic = (n,w,h,alt) => `<img src="${I(n)}" width="${w}" height="${h}" alt="${alt}" style="display:block;border:0">`;
+  const so = (url,n,alt) => `<td style="padding:0 2px"><a href="${url}" style="text-decoration:none;border:0">${ic(n,26,26,alt)}</a></td>`;
+  const linha = (c,pt) => `<tr><td style="padding-top:${pt}px"><table ${T} style="border-collapse:collapse"><tr><td width="16" height="18" align="center" valign="middle" style="width:16px;height:18px;line-height:18px"><img src="${I(c.n)}" width="${c.w}" height="${c.h}" alt="${c.alt}" style="border:0;vertical-align:middle"></td><td width="6" style="width:6px;font-size:1px">&nbsp;</td><td valign="middle" style="font-size:12px;line-height:18px;height:18px">${link(c.href,c.txt,cor)}</td></tr></table></td></tr>`;
+  return `
+<table ${T} style="border-collapse:collapse;font-family:${FONTE};color:${cor};width:370px">
+ <tr>
+  <td valign="top" align="center" style="padding:0 12px 0 0;width:90px">
+   <table ${T} style="border-collapse:collapse;margin:0 auto"><tr><td align="center">${ic('logo',70,96,'Cash Atacado')}</td></tr></table>
+   <table ${T} style="border-collapse:collapse;margin:6px auto 0"><tr>${so(m.linkedin,'linkedin','LinkedIn')}${so(m.instagram,'instagram','Instagram')}${so(m.facebook,'facebook','Facebook')}</tr></table>
+  </td>
+  <td valign="top">
+   <table ${T} style="border-collapse:collapse;font-family:${FONTE}">
+    <tr><td style="font-size:16px;font-weight:bold;color:${cor};padding-bottom:2px">${esc(d.nome)}</td></tr>
+    <tr><td style="font-size:12px;color:${cor};padding-bottom:6px;border-bottom:1px solid ${cor}">${esc(d.cargo)}</td></tr>
+    ${contatos(d,m,{tel:16}).map((c,i) => linha(c, i ? 4 : 6)).join('\n    ')}
+   </table>
+  </td>
+ </tr>
+ <tr><td colspan="2" style="padding-top:10px">
+  <table ${T} width="100%" style="border-collapse:collapse"><tr><td align="center" bgcolor="${verde}" style="background:${verde};color:#ffffff;font-size:11px;font-weight:bold;padding:5px 8px;font-family:${FONTE}">${esc(d.endereco)}</td></tr></table>
+ </td></tr>
+</table>`;
+}
+
+/* ---------- Modelo SUPER JACA (mesma estrutura do Cash; muda só a marca) ---------- */
+function layoutSuperJaca(d, m){
+  const I = n => imgUrl(m,n), cor = '#303d33', barra = '#77ca00' /* mesmo verde do fundo da logo */;
+  const ic = (n,w,h,alt) => `<img src="${I(n)}" width="${w}" height="${h}" alt="${alt}" style="display:block;border:0">`;
+  /* Rede sem link (vazia em MODELOS) mostra só o ícone */
+  const so = (url,n,alt) => `<td style="padding:0 2px">${url ? `<a href="${url}" style="text-decoration:none;border:0">${ic(n,26,26,alt)}</a>` : ic(n,26,26,alt)}</td>`;
+  const linha = (c,pt) => `<tr><td style="padding-top:${pt}px"><table ${T} style="border-collapse:collapse"><tr><td width="16" height="18" align="center" valign="middle" style="width:16px;height:18px;line-height:18px"><img src="${I(c.n)}" width="${c.w}" height="${c.h}" alt="${c.alt}" style="border:0;vertical-align:middle"></td><td width="6" style="width:6px;font-size:1px">&nbsp;</td><td valign="middle" style="font-size:12px;line-height:18px;height:18px">${link(c.href,c.txt,cor)}</td></tr></table></td></tr>`;
+  return `
+<table ${T} style="border-collapse:collapse;font-family:${FONTE};color:${cor};width:370px">
+ <tr>
+  <td valign="top" align="center" style="padding:0 12px 0 0;width:90px">
+   <table ${T} style="border-collapse:collapse;margin:0 auto"><tr><td align="center">${ic('logo',66,89,'Super Jaca Supermercados')}</td></tr></table>
+   <table ${T} style="border-collapse:collapse;margin:6px auto 0"><tr>${so(m.facebook,'facebook','Facebook')}${so(m.linkedin,'linkedin','LinkedIn')}${so(m.instagram,'instagram','Instagram')}</tr></table>
+  </td>
+  <td valign="top">
+   <table ${T} style="border-collapse:collapse;font-family:${FONTE}">
+    <tr><td style="font-size:16px;font-weight:bold;color:${cor};padding-bottom:2px">${esc(d.nome)}</td></tr>
+    <tr><td style="font-size:12px;color:${cor};padding-bottom:6px;border-bottom:1px solid ${cor}">${esc(d.cargo)}</td></tr>
+    ${contatos(d,m,{tel:16}).map((c,i) => linha(c, i ? 4 : 6)).join('\n    ')}
+   </table>
+  </td>
+ </tr>
+ <tr><td colspan="2" style="padding-top:10px">
+  <table ${T} width="100%" style="border-collapse:collapse"><tr><td align="center" bgcolor="${barra}" style="background:${barra};color:#ffffff;font-size:11px;font-weight:bold;padding:5px 8px;font-family:${FONTE}">${esc(d.endereco)}</td></tr></table>
+ </td></tr>
+</table>`;
+}
+
+/* ---------- Página ---------- */
+let atual = 'cash';
+const M = () => MODELOS[atual];
+const dados = () => ({nome:nome.value, cargo:cargo.value, tel:semtel.checked?'':tel.value, email:email.value, endereco:endereco.value});
+const html = () => M().layout(dados(), M()).trim();
+
+function selecionar(id){
+  const antigo = MODELOS[atual], novo = MODELOS[id];
+  /* Troca o domínio do e-mail e o endereço só se ainda estiverem no padrão do modelo anterior */
+  if (email.value.endsWith('@' + antigo.dominio)) email.value = email.value.replace('@' + antigo.dominio, '@' + novo.dominio);
+  if (!endereco.value || endereco.value === antigo.endereco) endereco.value = novo.endereco;
+  atual = id;
+  document.documentElement.style.setProperty('--cor', novo.corUI);
+  titulo.textContent = 'Gerador de assinatura – ' + novo.nome;
+  document.querySelectorAll('.modelo').forEach(b => b.classList.toggle('ativo', b.dataset.id === id));
+  msg.textContent = '';
+  render();
+}
+function render(){
+  aviso.textContent = '';
+  preview.innerHTML = html();
+  /* Só na prévia: se a imagem não carregar do REPO, usa a pasta local. O que é copiado continua apontando para o REPO. */
+  preview.querySelectorAll('img').forEach(img => img.onerror = () => {
+    img.onerror = null;
+    img.src = M().pasta + '/' + img.src.split('/').pop();
+    aviso.textContent = 'Atenção: imagens não encontradas em ' + REPO + '/' + M().pasta + ' — a prévia usa a pasta local, mas a assinatura copiada só mostrará as imagens depois de publicadas.';
+  });
+}
+/* Copia o HTML exato da assinatura. Copiar a seleção da prévia deixava o navegador
+   reescrever o HTML e descartar estilos como text-decoration:none. */
+function copiar(){
+  const h = html();
+  const onCopy = e => { e.clipboardData.setData('text/html', h); e.clipboardData.setData('text/plain', preview.innerText); e.preventDefault(); };
+  document.addEventListener('copy', onCopy);
+  document.execCommand('copy');
+  document.removeEventListener('copy', onCopy);
+  msg.textContent = 'Copiado! Cole em Outlook > Configurações > Assinaturas.';
+}
+function copiarHtml(){
+  navigator.clipboard.writeText(html());
+  msg.textContent = 'Código HTML copiado (use em webmail que aceita editar a assinatura em HTML).';
+}
+
+modelos.innerHTML = Object.entries(MODELOS).map(([id,m]) =>
+  `<button type="button" class="modelo" data-id="${id}" onclick="selecionar('${id}')"><img src="${m.pasta}/logo.png" onerror="this.src='${REPO}/${m.pasta}/logo.png';this.onerror=null" alt="">${m.nome}</button>`).join('');
+['nome','cargo','tel','email','endereco','semtel'].forEach(id => document.getElementById(id).addEventListener('input', render));
+semtel.addEventListener('change',()=>{tel.disabled=semtel.checked;render();});
+endereco.value = MODELOS[atual].endereco;
+selecionar('cash');
+</script>
+</body>
+</html>
